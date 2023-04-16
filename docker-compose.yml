@@ -1,0 +1,43 @@
+version: '3.7'
+services:
+  web_wallet_postgres:
+    image: postgres:13
+    environment:
+      POSGRES_USER: postgres
+      PGUSER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '54321:5432'
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  web_wallet_postgres_migrations:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+      - web_wallet_postgres
+    restart: on-failure
+    environment:
+      DB_URL: postgresql://postgres:postgres@users_postgres:5432/postgres
+    command: alembic upgrade head
+
+  web_wallet_backend:
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+      - web_wallet_postgres
+    ports:
+      - '8001:5000'
+    environment:
+      PYTHONUNBUFFERED: 1
+      HOST: 0.0.0.0
+      PORT: 5000
+      DB_URL: postgresql://postgres:postgres@users_postgres:5432/postgres
+    command: python manage.py start
